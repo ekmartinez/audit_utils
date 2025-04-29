@@ -182,8 +182,6 @@ class Amortization(QMainWindow):
             years = days / 365.25
             self.periods_value.setText(str(f'{years:.0f}'))
     
-    comp = self.compounding.currentText()
-    
     def set_results(self):
         
         start = self.start_date_value.text()

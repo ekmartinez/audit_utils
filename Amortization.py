@@ -1,6 +1,9 @@
-import pandas as pd
 
-def compounder(start, periods, comp, rate, ann):
+import numpy as np
+import pandas as pd
+import numpy_financial as npf
+
+def compounder(start, periods, comp, rate, ann, principal):
     """Returns compounded rate and frequency"""
 
     frequency = ''
@@ -33,21 +36,23 @@ def compounder(start, periods, comp, rate, ann):
 
     dates = pd.date_range(start=start, periods=periods+1, freq=frequency)
 
-    return [dates, compounded_rate]
+    payment = npf.pmt(rate=compounded_rate, nper=periods, pv=-principal)
+
+    return [dates, compounded_rate, payment]
     
 def amortize(start, periods, comp, rate, ann, pmt, principal):
 
-    dates_rates = compounder(start, periods, comp, rate, ann)
+    dates_rates_payment = compounder(start, periods, comp, rate, ann, principal)
 
     # Populate Payment Column
     pmt_list = [0]
     for x in range(0, periods):
-        pmt_list.append(pmt)
+        pmt_list.append(dates_rates_payment[2])
 
 
     # Define the data structure
     data = {
-            'Date': dates_rates[0],
+            'Date': dates_rates_payment[0],
             'Payment': pmt_list,
             'Interest':[0],
             'Principal':[0],
@@ -55,7 +60,7 @@ def amortize(start, periods, comp, rate, ann, pmt, principal):
         }
 
     for t in range(0, periods):
-        interest = data['Balance'][-1] * dates_rates[1]
+        interest = data['Balance'][-1] * dates_rates_payment[1]
         principal = pmt - interest
 
         data['Interest'].append(interest)
@@ -63,11 +68,17 @@ def amortize(start, periods, comp, rate, ann, pmt, principal):
         data['Balance'].append(data['Balance'][-1] - principal)
     
     df = pd.DataFrame(data)
+    # Round the relevant columns to 0 decimal places
+    df[['Payment', 'Interest', 'Principal', 'Balance']] = df[['Payment', 'Interest', 'Principal', 'Balance']].round(0)
+
+    # Set values less than 0.5 to 0
+    df[['Interest', 'Principal', 'Balance']] = df[['Interest', 'Principal', 'Balance']].apply(lambda x: np.where(x < 0.5, 0, x)).astype(int)
+    
     return df
 
 start = '1/1/2024'
 periods = 5
-comp = 'Yearly'
+comp = 'Annual'
 rate = .09
 ann = 'Ordinary'
 pmt = 1285
